@@ -119,7 +119,6 @@ public class UsuarioRestController {
                                       "password": "AnaSegura_2024",
                                       "telefono": "5512345678",
                                       "celular": "5512345678",
-                                      "tiposangre": "O+",
                                       "rol": { "idRol": 2 },
                                       "imagen": null,
                                       "direcciones": [

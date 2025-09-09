@@ -25,15 +25,39 @@ public class RolRestController {
     @Autowired
     private IRolJPADAO rolDAO;
 
-    @Operation(summary = "Listar roles")
+    @Operation(
+        operationId = "roles-listar",
+        summary = "Listar roles",
+        description = "Obtiene el catálogo de roles. La lista viene en `Result.object`."
+    )
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "OK",
-                    content = @Content(schema = @Schema(implementation = Result.class),
-                            examples = @ExampleObject(value = """
-                                    { "correct": true, "object": [ { "idRol": 1, "nombre": "Admin" }, { "idRol": 2, "nombre": "Usuario" } ] }
-                                    """))),
-            @ApiResponse(responseCode = "500", description = "Error interno",
-                    content = @Content(schema = @Schema(implementation = Result.class)))
+        @ApiResponse(responseCode = "200", description = "OK",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = Result.class),
+                examples = {
+                    @ExampleObject(name = "Con roles", value = """
+                        {
+                          "correct": true,
+                          "object": [
+                            { "idRol": 1, "nombre": "diseñador UIX" },
+                            { "idRol": 2, "nombre": "desarrolador" }
+                          ]
+                        }
+                    """),
+                    @ExampleObject(name = "Vacío", value = """
+                        { "correct": true, "object": [] }
+                    """)
+                }
+            )
+        ),
+        @ApiResponse(responseCode = "500", description = "Error interno",
+            content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = Result.class),
+                examples = @ExampleObject(name = "Error genérico", value = """
+                    { "correct": false, "errorMessage": "Unexpected error", "object": null }
+                """)
+            )
+        )
     })
     @GetMapping("getall")
     public ResponseEntity GetAllRol() {

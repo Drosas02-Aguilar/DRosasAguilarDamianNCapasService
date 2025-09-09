@@ -61,8 +61,8 @@ public class Usuario {
     @Column(name = "sexo", nullable = false)
     private String Sexo;
     
-    @Column(name = "tiposangre")
-    private String Tiposangre;
+//    @Column(name = "tiposangre")
+//    private String Tiposangre;
     
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd")
     @DateTimeFormat(pattern = "yyyy-MM-dd")
@@ -135,8 +135,8 @@ public List<Direccion> direcciones = new ArrayList<>();
     public String getSexo() { return Sexo; }
     public void setSexo(String sexo) { Sexo = sexo; }
 
-    public String getTiposangre() { return Tiposangre; }
-    public void setTiposangre(String tiposangre) { Tiposangre = tiposangre; }
+//    public String getTiposangre() { return Tiposangre; }
+//    public void setTiposangre(String tiposangre) { Tiposangre = tiposangre; }
 
     public Date getFechaNacimiento() { return FechaNacimiento; }
     public void setFechaNacimiento(Date FechaNacimiento) { this.FechaNacimiento = FechaNacimiento; }
