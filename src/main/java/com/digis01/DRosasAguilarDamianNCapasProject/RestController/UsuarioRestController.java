@@ -31,7 +31,7 @@ public class UsuarioRestController {
 
     @Operation(
             summary = "Listar usuarios",
-            description = "Obtiene todos los usuarios. Devuelve `Result.objects` como arreglo de usuarios."
+            description = "Obtiene todos los usuarios."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "OK",
@@ -193,7 +193,7 @@ public class UsuarioRestController {
 
     @Operation(
             summary = "Actualizar usuario",
-            description = "Actualiza campos del usuario. El `id` de la URL prevalece."
+            description = "Actualiza campos del usuario."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Actualizado",
@@ -238,7 +238,7 @@ public class UsuarioRestController {
 
     @Operation(
             summary = "Usuario + Direcciones",
-            description = "Devuelve el usuario con sus direcciones en `Result.object`."
+            description = "Devuelve el usuario con sus direcciones."
     )
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "OK",

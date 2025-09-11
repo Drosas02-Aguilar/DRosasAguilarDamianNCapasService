@@ -166,7 +166,7 @@ public class DireccionRestController {
     @Operation(
         operationId = "direcciones-actualizar",
         summary = "Actualizar dirección",
-        description = "Actualiza campos de la dirección. El `id` de la URL prevalece."
+        description = "Actualiza campos de la dirección."
     )
     @ApiResponses({
         @ApiResponse(responseCode = "200", description = "Actualizado",

@@ -2,10 +2,12 @@
 package com.digis01.DRosasAguilarDamianNCapasProject.Configuration;
 
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
+@Configuration
 public class CorsFilterConfig {
     @Bean // terminar una configuración personalizada
     public CorsFilter corsFilter(){
