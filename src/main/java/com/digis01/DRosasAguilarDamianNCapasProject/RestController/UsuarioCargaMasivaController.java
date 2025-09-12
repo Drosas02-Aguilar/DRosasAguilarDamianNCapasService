@@ -3,21 +3,25 @@ package com.digis01.DRosasAguilarDamianNCapasProject.RestController;
 import com.digis01.DRosasAguilarDamianNCapasProject.cargamasiva.CargaMasiva.CargaMasivaService;
 import com.digis01.DRosasAguilarDamianNCapasProject.cargamasiva.CargaMasiva.BulkJob;
 import com.digis01.DRosasAguilarDamianNCapasProject.cargamasiva.CargaMasiva.BulkStatus;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.Part;
+import com.digis01.DRosasAguilarDamianNCapasProject.cargamasiva.CargaMasiva.CargaError;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.multipart.MultipartHttpServletRequest;
-
-import java.io.InputStream;
-import java.util.Collection;
-import java.util.Locale;
 
 @RestController
 @RequestMapping("/usuarioapi/cargamasiva")
+@Tag(name = "Carga Masiva de Usuarios", description = "Endpoints para subir y procesar archivos de carga masiva")
 public class UsuarioCargaMasivaController {
 
     private final CargaMasivaService service;
@@ -26,81 +30,43 @@ public class UsuarioCargaMasivaController {
         this.service = service;
     }
 
-    // ÚNICO endpoint de subida: acepta multipart/form-data O application/octet-stream
-    @PostMapping(consumes = MediaType.ALL_VALUE)
+    // POST 1/2: SUBIR (solo multipart/form-data con key "file")
+    @Operation(
+        summary = "Subir archivo y registrar job",
+        description = "Acepta .xlsx, .xls, .txt, .csv. Si el SHA1 ya está PROCESADO y sobrescribir=false, retorna ERROR (409)."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Job registrado correctamente", content = @Content(schema = @Schema(implementation = BulkJob.class))),
+        @ApiResponse(responseCode = "409", description = "Error de negocio (por ej. 'Mismo archivo ya PROCESADO (por LOG)')", content = @Content(schema = @Schema(implementation = BulkJob.class))),
+        @ApiResponse(responseCode = "403", description = "Prohibido", content = @Content(schema = @Schema(implementation = BulkJob.class))),
+        @ApiResponse(responseCode = "400", description = "Solicitud inválida", content = @Content(schema = @Schema(implementation = BulkJob.class)))
+    })
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<BulkJob> upload(
-            HttpServletRequest request,
-            @RequestParam(value = "file", required = false) MultipartFile file,
+            @Parameter(
+                name = "file",
+                description = "Archivo de carga (.xlsx, .xls, .txt, .csv)",
+                required = true,
+                schema = @Schema(type = "string", format = "binary")
+            )
+            @RequestParam("file") MultipartFile file,
+
+            @Parameter(
+                description = "Permite reintentar aunque el mismo archivo (SHA1) ya fue PROCESADO",
+                example = "false"
+            )
             @RequestParam(name = "sobrescribir", defaultValue = "false") boolean sobrescribir
     ) {
         try {
-            byte[] data = null;
-            String filename = null;
-
-            // 1) Si vino como "file" (multipart)
-            if (file != null && !file.isEmpty()) {
-                data = file.getBytes();
-                filename = (file.getOriginalFilename() != null && !file.getOriginalFilename().isBlank())
-                        ? file.getOriginalFilename()
-                        : "archivo.txt";
-            }
-
-            // 2) Si es multipart pero no usaron la key "file", toma el primer archivo disponible
-            if (data == null || data.length == 0) {
-                String ct = request.getContentType();
-                boolean isMultipart = (ct != null && ct.toLowerCase(Locale.ROOT).startsWith("multipart/"));
-
-                if (isMultipart) {
-                    // via MultipartHttpServletRequest (si está disponible)
-                    if (request instanceof MultipartHttpServletRequest mreq && !mreq.getFileMap().isEmpty()) {
-                        MultipartFile any = mreq.getFileMap().values().iterator().next();
-                        if (any != null && !any.isEmpty()) {
-                            data = any.getBytes();
-                            filename = (any.getOriginalFilename() != null && !any.getOriginalFilename().isBlank())
-                                    ? any.getOriginalFilename()
-                                    : "archivo.txt";
-                        }
-                    }
-                    // via Servlet Parts (fallback)
-                    if (data == null || data.length == 0) {
-                        try {
-                            Collection<Part> parts = request.getParts();
-                            if (parts != null) {
-                                for (Part p : parts) {
-                                    String fn = p.getSubmittedFileName();
-                                    if (fn != null && p.getSize() > 0) {
-                                        data = p.getInputStream().readAllBytes();
-                                        filename = fn;
-                                        break;
-                                    }
-                                }
-                            }
-                        } catch (Exception ignored) {}
-                    }
-                }
-            }
-
-            if (data == null || data.length == 0) {
-                try (InputStream is = request.getInputStream()) {
-                    data = is.readAllBytes();
-                }
-                if (data != null && data.length > 0) {
-                    filename = request.getHeader("X-Filename");
-                    if (filename == null || filename.isBlank()) filename = "archivo.txt"; // default con extensión
-                }
-            }
-
-            if (data == null || data.length == 0) {
+            if (file == null || file.isEmpty()) {
                 BulkJob err = new BulkJob();
                 err.status = BulkStatus.ERROR;
-                err.observacion = "No se encontró archivo: usa form-data (key tipo File) o cuerpo binario con el archivo.";
-                return new ResponseEntity<>(err, HttpStatus.BAD_REQUEST);
+                err.observacion = "No se encontró archivo: usa form-data con key 'file'.";
+                return ResponseEntity.badRequest().body(err);
             }
-
-            BulkJob job = service.registrarUpload(filename, data, sobrescribir);
+            BulkJob job = service.registrarUpload(file.getOriginalFilename(), file.getBytes(), sobrescribir);
             HttpStatus st = (job.status == BulkStatus.ERROR) ? HttpStatus.CONFLICT : HttpStatus.OK;
             return new ResponseEntity<>(job, st);
-
         } catch (SecurityException se) {
             BulkJob err = new BulkJob();
             err.status = BulkStatus.ERROR;
@@ -114,19 +80,21 @@ public class UsuarioCargaMasivaController {
         }
     }
 
-    // Procesar archivo previamente subido
-    @PostMapping("/procesar/{id}")
-    public ResponseEntity<BulkJob> procesar(@PathVariable String id) {
-        try {
-            BulkJob job = service.procesar(id);
-            HttpStatus st = (job.status == BulkStatus.ERROR) ? HttpStatus.CONFLICT : HttpStatus.OK;
-            return new ResponseEntity<>(job, st);
-        } catch (Exception ex) {
-            BulkJob err = new BulkJob();
-            err.id = id;
-            err.status = BulkStatus.ERROR;
-            err.observacion = ex.getMessage();
-            return new ResponseEntity<>(err, HttpStatus.BAD_REQUEST);
-        }
+    @Operation(
+        summary = "Procesar archivo previamente registrado",
+        description = "Ejecuta parseo, validaciones y altas/actualizaciones. Devuelve lista de errores por fila/campo si aplica."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Resultado del procesamiento", content = @Content(schema = @Schema(implementation = BulkJob.class))),
+        @ApiResponse(responseCode = "409", description = "Error de negocio (por ejemplo TTL vencido)", content = @Content(schema = @Schema(implementation = BulkJob.class)))
+    })
+    @PostMapping(value = "/procesar/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<BulkJob> procesar(
+            @Parameter(description = "ID del job devuelto al subir el archivo", required = true, example = "d37d4768-c5be-4719-be69-c20980c1a247")
+            @PathVariable String id
+    ) {
+        BulkJob job = service.procesar(id);
+        HttpStatus st = (job.status == BulkStatus.ERROR) ? HttpStatus.CONFLICT : HttpStatus.OK;
+        return new ResponseEntity<>(job, st);
     }
 }

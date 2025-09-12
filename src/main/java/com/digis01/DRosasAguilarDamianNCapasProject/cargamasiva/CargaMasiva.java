@@ -14,7 +14,6 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.multipart.support.StandardServletMultipartResolver;
@@ -50,14 +49,14 @@ public class CargaMasiva {
         public Instant createdAt;
         public Instant deadline;
         public String observacion;
-        public boolean sobrescribir; // controla reproceso/overwrite de archivo
+        public boolean sobrescribir;
         public int insertados;
-        public int actualizados; // siempre 0 (no se actualiza en este modo)
+        public int actualizados;
         public int ignorados;
         public List<CargaError> errores = new ArrayList<>();
-        @JsonIgnore public byte[] data;        // buffer del archivo (no se expone en JSON)
+        @JsonIgnore public byte[] data;
         public String contentType;
-        @JsonIgnore public Path savedPath;     // ruta donde se guardó renombrado
+        @JsonIgnore public Path savedPath;
     }
 
     // ===== DTOs =====
@@ -66,14 +65,14 @@ public class CargaMasiva {
         public LocalDate fechaNacimiento;
         public String username, email, password, curp, celular, telefono;
         public Integer idRol;
-        public String imagenBase64; // CLOB (base64 como texto)
+        public String imagenBase64;
     }
     public static class DireccionDTO {
         public String calle, numeroInterior, numeroExterior;
         public Integer idColonia;
     }
     public static class RegistroUsuarioDireccion {
-        public int fila; // para reportar errores por fila
+        public int fila;
         public UsuarioDTO usuario;
         public DireccionDTO direccion;
         public RegistroUsuarioDireccion(int fila, UsuarioDTO u, DireccionDTO d) {
@@ -98,17 +97,16 @@ public class CargaMasiva {
     // ===== Parser =====
     public static class CargaParser {
         public static class ParseResult {
-            public final List<RegistroUsuarioDireccion> registros = new ArrayList<>();
-            public final List<CargaError> errores = new ArrayList<>();
+            public  List<RegistroUsuarioDireccion> registros = new ArrayList<>();
+            public  List<CargaError> errores = new ArrayList<>();
         }
 
-        // Encabezados en el orden esperado (para archivos sin encabezado)
-        private static final List<String> ORDERED_HEADERS = Arrays.asList(
+        private static  List<String> ORDERED_HEADERS = Arrays.asList(
                 "NOMBRE","APELLIDOPATERNO","APELLIDOMATERNO","SEXO","FECHANACIMIENTO",
                 "USERNAME","EMAIL","PASSWORD","CURP","CELULAR","TELEFONO","IDROL",
                 "IMAGEN","CALLE","NUMEROINTERIOR","NUMEROEXTERIOR","IDCOLONIA"
         );
-        private static final Set<String> HEADERS = new LinkedHashSet<>(ORDERED_HEADERS);
+        private static  Set<String> HEADERS = new LinkedHashSet<>(ORDERED_HEADERS);
 
         public ParseResult parse(byte[] bytes, String filename) {
             String lower = filename.toLowerCase(Locale.ROOT);
@@ -141,18 +139,16 @@ public class CargaMasiva {
                     }
                     int encontrados = 0;
                     for (String h : HEADERS) if (idx.containsKey(h)) encontrados++;
-                    // Heurística: si encontramos 60%+ de headers, consideramos que sí hay encabezado
                     tieneHeaderValido = (encontrados >= (int)Math.ceil(HEADERS.size() * 0.6));
                 }
 
                 int startRow = 1;
                 if (!tieneHeaderValido) {
-                    // sin encabezado: mapea por índice en el orden esperado
                     idx.clear();
                     for (int c = 0; c < ORDERED_HEADERS.size(); c++) {
                         idx.put(ORDERED_HEADERS.get(c), c);
                     }
-                    startRow = 0; // primera fila ya es data
+                    startRow = 0;
                 }
 
                 for (int r = startRow; r <= sh.getLastRowNum(); r++) {
@@ -175,7 +171,6 @@ public class CargaMasiva {
             UsuarioDTO u = new UsuarioDTO();
             DireccionDTO d = new DireccionDTO();
 
-            // helpers
             java.util.function.Function<String,String> getS = h -> {
                 Integer c = idx.get(h);
                 if (c == null) return null;
@@ -240,7 +235,6 @@ public class CargaMasiva {
                 Map<String,Integer> idx = new LinkedHashMap<>();
                 boolean tieneHeaderValido = false;
 
-                // ¿La primera línea parece encabezado?
                 for (int i = 0; i < firstCols.length; i++) {
                     String h = firstCols[i].trim().toUpperCase(Locale.ROOT);
                     if (!h.isEmpty()) idx.put(h, i);
@@ -250,17 +244,14 @@ public class CargaMasiva {
                 tieneHeaderValido = (encontrados >= (int)Math.ceil(HEADERS.size() * 0.6));
 
                 if (!tieneHeaderValido) {
-                    // sin encabezado: mapea por índice (orden fijo)
                     idx.clear();
                     for (int i = 0; i < ORDERED_HEADERS.size(); i++) {
                         idx.put(ORDERED_HEADERS.get(i), i);
                     }
-                    // procesa la primera línea como data (fila = 1)
                     RegistroUsuarioDireccion reg = parseTxtLineAsRegistro(firstCols, idx, 1, out.errores);
                     if (reg != null) out.registros.add(reg);
                 }
 
-                // resto de líneas
                 String line; int fila = 1;
                 while ((line = br.readLine()) != null) {
                     fila++;
@@ -327,8 +318,8 @@ public class CargaMasiva {
         private void validar(UsuarioDTO u, DireccionDTO d, int fila1, List<CargaError> errores) {
             if (u.nombre == null || u.nombre.isEmpty()) errores.add(new CargaError(fila1,"NOMBRE","Requerido"));
             if (u.apellidoPaterno == null || u.apellidoPaterno.isEmpty()) errores.add(new CargaError(fila1,"APELLIDOPATERNO","Requerido"));
-            if (u.sexo == null || u.sexo.isEmpty() || !(u.sexo.equalsIgnoreCase("H") || u.sexo.equalsIgnoreCase("M")))
-                errores.add(new CargaError(fila1,"SEXO","Debe ser H o M"));
+            if (u.sexo == null || u.sexo.isEmpty() || !(u.sexo.equalsIgnoreCase("M") || u.sexo.equalsIgnoreCase("F")))
+                errores.add(new CargaError(fila1,"SEXO","Debe ser F o M"));
             if (u.fechaNacimiento == null) errores.add(new CargaError(fila1,"FECHANACIMIENTO","Formato válido (yyyy-MM-dd o fecha de Excel)"));
             if (u.username == null || u.username.isEmpty()) errores.add(new CargaError(fila1,"USERNAME","Requerido"));
             if (u.email == null || u.email.isEmpty() || !u.email.contains("@"))
@@ -348,14 +339,12 @@ public class CargaMasiva {
         private final long ttlMinutes;
         private final Path baseDir;
 
-        // Log
         private final Path logFile;
         private static final DateTimeFormatter LOG_TS = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 
         private final Map<String,BulkJob> jobs = new ConcurrentHashMap<>();
         private final Map<String,String> sha1ToJobId = new ConcurrentHashMap<>();
 
-        // Excepción controlada para duplicados
         private static class DuplicateUserException extends RuntimeException {
             public DuplicateUserException(String msg) { super(msg); }
         }
@@ -374,23 +363,30 @@ public class CargaMasiva {
                 Path parent = this.logFile.getParent();
                 if (parent != null) Files.createDirectories(parent);
                 Files.createDirectories(this.baseDir);
+                // *** SIN .jobs ***
             } catch (Exception ignore) {}
         }
 
-        /** Checa en el LOG si existe un PROCESADO para el SHA1 (persistente entre reinicios). */
+        /** Checa en el LOG si existe un PROCESADO para el SHA1  */
         private boolean isShaProcessedInLog(String sha1) {
             try {
                 if (!Files.exists(logFile)) return false;
-                // Lee todo el archivo de log (suficiente para volúmenes normales)
                 List<String> lines = Files.readAllLines(logFile, StandardCharsets.UTF_8);
-                for (String line : lines) {
-                    if (!line.startsWith("log ")) continue;
-                    // Formato: log <sha1>|<Nombre>|<STATUS>|<ts>|<mensaje>
-                    int firstSpace = line.indexOf(' ');
-                    if (firstSpace < 0) continue;
-                    String rest = line.substring(firstSpace + 1);
-                    String[] parts = rest.split("\\|", -1);
-                    if (parts.length < 3) continue;
+                for (String raw : lines) {
+                    if (raw == null) continue;
+                    String line = raw.trim();
+                    if (line.isEmpty()) continue;
+
+                    // Soporte para líneas antiguas que empiezan con "log "
+                    if (line.startsWith("log ")) {
+                        int firstSpace = line.indexOf(' ');
+                        if (firstSpace >= 0 && firstSpace + 1 < line.length()) {
+                            line = line.substring(firstSpace + 1);
+                        }
+                    }
+
+                    String[] parts = line.split("\\|", -1);
+                    if (parts.length < 3) continue; // necesitamos al menos sha1 | filename | status
                     String sha = parts[0];
                     String status = parts[2];
                     if (sha.equalsIgnoreCase(sha1) && "PROCESADO".equalsIgnoreCase(status)) {
@@ -401,22 +397,25 @@ public class CargaMasiva {
             return false;
         }
 
-        /** POST /usuarioapi/cargamasiva (Multipart o Binario)
-         *  - Calcula SHA1
-         *  - Si LOG ya tiene PROCESADO para ese SHA1 y sobrescribir=false -> ERROR
-         *  - Guarda archivo como {sha1}_{nombreOriginal}:
-         *      - sobrescribir=false: no sobreescribe si ya existe
-         *      - sobrescribir=true : sobrescribe
-         *  - Registra job en PROCESAR y LOG "Registrado"
-         */
+        // ===== Persistencia de metadatos: DESACTIVADA (.jobs) =====
+        private void persistJobMeta(BulkJob job) {
+            // NO-OP: desactivado (no se crean .jobs)
+        }
+
+        private BulkJob tryLoadJobFromDisk(String id) {
+            // NO-OP: desactivado (no se leen .jobs)
+            return null;
+        }
+
+        // ===== API =====
         public BulkJob registrarUpload(String originalName, byte[] data, boolean sobrescribir) {
             try {
                 String sha1 = CargaMasiva.sha1(data);
 
-                // Validación por LOG persistente
+                // Duplicado ya PROCESADO según LOG (no devolver id procesable)
                 if (isShaProcessedInLog(sha1) && !sobrescribir) {
                     BulkJob j = new BulkJob();
-                    j.id = UUID.randomUUID().toString();
+                    j.id = null;
                     j.filename = originalName == null ? "archivo" : originalName.replaceAll("[\\r\\n]", "");
                     j.sha1 = sha1;
                     j.status = BulkStatus.ERROR;
@@ -434,9 +433,7 @@ public class CargaMasiva {
                 if (Files.exists(target)) {
                     if (sobrescribir) {
                         Files.write(target, data, StandardOpenOption.TRUNCATE_EXISTING, StandardOpenOption.WRITE);
-                    } else {
-                        // no sobreescribimos; conservamos el existente
-                    }
+                    } // else conservar existente
                 } else {
                     Files.write(target, data, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
                 }
@@ -456,7 +453,7 @@ public class CargaMasiva {
 
                 jobs.put(job.id, job);
                 sha1ToJobId.put(sha1, job.id);
-
+                // SIN persistJobMeta()
                 writeLog(job.sha1, job.filename, BulkStatus.PROCESAR, "Registrado", job.createdAt);
                 return job;
             } catch (Exception ex) {
@@ -469,19 +466,21 @@ public class CargaMasiva {
             }
         }
 
-        /** POST /usuarioapi/cargamasiva/procesar/{id} */
         public BulkJob procesar(String id) {
             BulkJob job = jobs.get(id);
             if (job == null) {
-                BulkJob err = new BulkJob();
-                err.id = id;
-                err.status = BulkStatus.ERROR;
-                err.observacion = "uploadId no encontrado";
-                writeLog("unknown", "unknown", err.status, err.observacion, Instant.now());
-                return err;
+                // Con .jobs desactivado, no se reconstruye desde disco
+                job = tryLoadJobFromDisk(id);
+                if (job == null) {
+                    BulkJob err = new BulkJob();
+                    err.id = id;
+                    err.status = BulkStatus.ERROR;
+                    err.observacion = "uploadId no encontrado";
+                    writeLog("unknown", "unknown", err.status, err.observacion, Instant.now());
+                    return err;
+                }
             }
 
-            // TTL vencido
             if (Instant.now().isAfter(job.deadline)) {
                 job.status = BulkStatus.ERROR;
                 job.observacion = "Se pasó el límite de tiempo para procesar (" + ttlMinutes + " min).";
@@ -505,7 +504,6 @@ public class CargaMasiva {
                 return job;
             }
 
-            // Procesamiento (solo INSERT; duplicados -> error por fila)
             for (RegistroUsuarioDireccion r : pr.registros) {
                 try {
                     int res = insertUsuarioDireccion(r.usuario, r.direccion);
@@ -531,9 +529,45 @@ public class CargaMasiva {
             return job;
         }
 
+        public BulkJob procesarPorSha1(String sha1) {
+            String jobId = sha1ToJobId.get(sha1);
+            if (jobId != null) return procesar(jobId);
+
+            try (DirectoryStream<Path> ds = Files.newDirectoryStream(baseDir, sha1 + "_*")) {
+                for (Path p : ds) {
+                    byte[] data = Files.readAllBytes(p);
+                    BulkJob job = new BulkJob();
+                    job.id = UUID.randomUUID().toString();
+                    job.filename = p.getFileName().toString().substring(sha1.length() + 1);
+                    job.sha1 = sha1;
+                    job.status = BulkStatus.PROCESAR;
+                    job.createdAt = Instant.now();
+                    job.deadline = job.createdAt.plusSeconds(ttlMinutes * 60);
+                    job.observacion = "Reconstruido desde disco.";
+                    job.data = data;
+                    job.contentType = guessContentTypeByName(job.filename);
+                    job.savedPath = p;
+
+                    jobs.put(job.id, job);
+                    sha1ToJobId.put(sha1, job.id);
+                    // SIN persistJobMeta()
+                    return procesar(job.id);
+                }
+            } catch (Exception e) {
+                BulkJob err = new BulkJob();
+                err.status = BulkStatus.ERROR;
+                err.observacion = "No se pudo reconstruir por SHA1: " + e.getMessage();
+                return err;
+            }
+            BulkJob nf = new BulkJob();
+            nf.status = BulkStatus.ERROR;
+            nf.observacion = "Archivo con ese SHA1 no existe en baseDir";
+            return nf;
+        }
+
         public Optional<BulkJob> getJob(String id) { return Optional.ofNullable(jobs.get(id)); }
 
-        // ===== INSERT ONLY =====
+        // ===== INSERT  =====
         private int insertUsuarioDireccion(UsuarioDTO u, DireccionDTO d) {
             Usuario existente = findByUsernameOrCurp(u.username, u.curp);
             if (existente != null) {
@@ -557,7 +591,6 @@ public class CargaMasiva {
             return list.isEmpty() ? null : list.get(0);
         }
 
-        // ====== CAMBIO: Rol como referencia administrada; sin tocar tus entidades
         private void mapUsuario(Usuario target, UsuarioDTO u) {
             target.setNombre(u.nombre);
             target.setApellidopaterno(u.apellidoPaterno);
@@ -576,9 +609,9 @@ public class CargaMasiva {
                 try {
                     Rol refRol = em.getReference(Rol.class, u.idRol);
                     if (target.Rol == null) {
-                        target.Rol = refRol; // tu campo público 'Rol'
+                        target.Rol = refRol;
                     } else {
-                        target.Rol.setIdRol(refRol.getIdRol()); // asegura el id
+                        target.Rol.setIdRol(refRol.getIdRol());
                     }
                 } catch (Exception ignored) {
                     // Si no existe el rol, la BD (FK NOT NULL) lo hará fallar — comportamiento esperado
@@ -586,7 +619,7 @@ public class CargaMasiva {
             }
         }
 
-        // ====== CAMBIO: amarrar direccion al usuario y colonia como referencia
+        // direccion al usuario y colonia como referencia
         private void mapOrAttachDireccion(Usuario usuario, DireccionDTO d) {
             if (d == null) return;
 
@@ -597,16 +630,11 @@ public class CargaMasiva {
             }
 
             Direccion dir = new Direccion();
-
-            // Setters típicos (por reflexión para no tocar tus entidades)
             try { Direccion.class.getMethod("setCalle", String.class).invoke(dir, d.calle); } catch (Exception ignored) {}
             try { Direccion.class.getMethod("setNumeroInterior", String.class).invoke(dir, d.numeroInterior); } catch (Exception ignored) {}
             try { Direccion.class.getMethod("setNumeroExterior", String.class).invoke(dir, d.numeroExterior); } catch (Exception ignored) {}
-
-            // setUsuario si existe (lado dueño)
             try { Direccion.class.getMethod("setUsuario", Usuario.class).invoke(dir, usuario); } catch (Exception ignored) {}
 
-            // idColonia: referencia administrada si hay entidad Colonia; si no, setIdColonia
             if (d.idColonia != null) {
                 boolean asignado = false;
                 try {
@@ -632,7 +660,7 @@ public class CargaMasiva {
             };
         }
         private void writeLog(String sha1, String filename, BulkStatus status, String message, Instant ts) {
-            String line = "log " + sha1 + "|" + filename + "|" +
+            String line =  sha1 + "|" + filename + "|" +
                     statusWord(status) + "|" +
                     LOG_TS.format(ts.atZone(ZoneId.systemDefault())) + "|" +
                     (message == null ? "" : message) +
@@ -643,7 +671,6 @@ public class CargaMasiva {
                         StandardOpenOption.CREATE, StandardOpenOption.APPEND
                 );
             } catch (Exception e) {
-                // no interrumpir el flujo por error de log
             }
         }
 
@@ -657,21 +684,25 @@ public class CargaMasiva {
         }
     }
 
-    // ===== Configuración HARDCODE (sin application.properties) =====
+    // ===== Configuración =====
     @Configuration
     public static class BeansConfig {
         @Bean
-        public CargaMasivaService cargaMasivaService(
-                IUsuarioJPADAO usuarioDAO,
-                EntityManager em
-        ) {
-            long ttl = 1L;                         
-            String baseDir = "archivos";           
-            String logFile = "archivos/cargamasiva.log";
+        public CargaMasivaService cargaMasivaService(IUsuarioJPADAO usuarioDAO, EntityManager em) {
+            long ttl = 1L; // minutos
+
+            // <proyecto>/src/main/resources/archivos
+            Path base = Paths.get(
+                    System.getProperty("user.dir"),
+                    "src", "main", "resources", "archivos"
+            ).toAbsolutePath().normalize();
+
+            String baseDir = base.toString();
+            String logFile = base.resolve("cargamasiva.log").toString();
+
             return new CargaMasivaService(usuarioDAO, em, ttl, baseDir, logFile);
         }
 
-        // Resolver para multipart (asegura que Spring trate la request como multipart)
         @Bean
         public StandardServletMultipartResolver multipartResolver() {
             return new StandardServletMultipartResolver();
