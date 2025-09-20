@@ -179,6 +179,14 @@ public List<Direccion> direcciones = new ArrayList<>();
         this.UsuarioBaja = UsuarioBaja;
     }
 
+    public Rol getRol() {
+        return Rol;
+    }
+
+    public void setRol(Rol Rol) {
+        this.Rol = Rol;
+    }
+
 
 
 }

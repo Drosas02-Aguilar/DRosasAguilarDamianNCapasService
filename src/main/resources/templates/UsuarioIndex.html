@@ -3,257 +3,365 @@
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{layout}">
 
-    <body layout:fragment="body">
+  <body layout:fragment="body">
+    <div class="container">
+      <div class="container py-4">
+        <!-- Hero -->
+        <div class="hero mb-4 d-flex align-items-center justify-content-between gap-3">
+          <div>
+            <h1 class="h4 mb-1"><i class="bi bi-people-fill me-2"></i>Usuarios</h1>
+            <p class="mb-0 opacity-75">Listado general de usuarios registrados.</p>
+          </div>
+          <div class="text-end">
+            <a th:href="@{/usuario/action/0}" class="btn btn-gradient btn-sm">
+              <i class="bi bi-person-plus me-1"></i> Registrar usuario
+            </a>
+          </div>
+        </div>
 
-        <div class="container">
+        <!-- Filtros (sin botón, sin submit; búsqueda dinámica con AJAX) -->
+        <form th:object="${usuariobusqueda}" class="row g-2 mb-3" onsubmit="return false;">
+          <div class="col-sm-3">
+            <input id="fNombre" class="form-control" placeholder="Nombre" th:field="*{nombre}">
+          </div>
+          <div class="col-sm-3">
+            <input id="fApP" class="form-control" placeholder="Apellido paterno" th:field="*{apellidopaterno}">
+          </div>
+          <div class="col-sm-3">
+            <input id="fApM" class="form-control" placeholder="Apellido materno" th:field="*{apellidomaterno}">
+          </div>
+          <div class="col-sm-3">
+            <select id="fRol" class="form-select" th:field="*{rol.idRol}">
+              <option th:value="0">-- Rol (todos) --</option>
+              <option th:each="r : ${roles}" th:value="${r.idRol}" th:text="${r.nombre}"></option>
+            </select>
+          </div>
+          <!-- Sin botón -->
+        </form>
 
-            <div class="container py-4">
-                <!-- Hero -->
-                <div class="hero mb-4 d-flex align-items-center justify-content-between gap-3">
+        <!-- Mensaje flash (opcional) -->
+        <div th:if="${msg}" class="alert alert-success alert-dismissible fade show" role="alert">
+          <span th:text="${msg}">Operación realizada</span>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <!-- Tabla -->
+        <div class="card">
+          <div class="table-responsive">
+            <table class="table align-middle table-hover mb-0">
+              <thead class="table-light text-center">
+                <tr>
+                  <th>Acciones</th>
+                  <th>Usuario</th>
+                  <th>Datos de contacto</th>
+                  <th>Direcciones</th>
+                  <th>Estatus</th>
+                </tr>
+              </thead>
+
+              <!-- tbody con id para re-render dinámico -->
+              <tbody id="tbodyUsuarios" class="text-center">
+                <!-- SSR inicial (se reemplaza al teclear) -->
+                <tr th:each="usuario : ${usuarios}">
+                  <!-- Acciones -->
+                  <td class="text-nowrap">
+                    <a th:href="@{|/usuario/action/${usuario.idUsuario}|}"
+                       class="btn btn-sm btn-warning me-1">
+                      <i class="bi bi-pencil-square"></i>
+                    </a>
+                    <a th:href="@{/usuario/eliminar(id=${usuario.idUsuario})}"
+                       class="btn btn-sm btn-danger"
+                       onclick="return confirm('¿Eliminar al usuario seleccionado?');">
+                      <i class="bi bi-trash"></i>
+                    </a>
+                  </td>
+
+                  <!-- Usuario -->
+                  <td class="text-start">
+                    <div class="d-flex align-items-center gap-2">
+                      <img th:if="${usuario.imagen != null}"
+                           th:src="|data:image/jpeg;base64,${usuario.imagen}|"
+                           alt="Avatar usuario" class="avatar" style="object-fit:cover;"/>
+                      <div th:unless="${usuario.imagen != null}" class="avatar">
+                        <span th:text="${(usuario.nombre != null ? usuario.nombre.substring(0,1) : 'U').toUpperCase()}">U</span>
+                      </div>
+
+                      <div>
+                        <div class="fw-semibold"
+                             th:text="|${usuario.nombre} ${usuario.apellidopaterno} ${usuario.apellidomaterno}|">
+                          Nombre Apellidos
+                        </div>
+                        <div class="text-muted small">
+                          <i class="bi bi-person-badge me-1"></i>
+                          <span th:text="${usuario.username} ?: 'Sin usuario'">Sin usuario</span>
+                        </div>
+                        <div class="mt-1">
+                          <span class="badge"
+                                th:classappend="${#strings.equalsIgnoreCase(#strings.trim(usuario.sexo),'M')} ? 'bg-primary' 
+                                : (${#strings.equalsIgnoreCase(#strings.trim(usuario.sexo),'F')} ? 'bg-danger' : 'text-bg-secondary')"
+                                th:text="${#strings.equalsIgnoreCase(#strings.trim(usuario.sexo),'M')} ? 'Masculino' 
+                                : (${#strings.equalsIgnoreCase(#strings.trim(usuario.sexo),'F')} ? 'Femenino' : 'Sin dato')}">
+                            Sin dato
+                          </span>
+                          <span class="badge text-bg-light ms-1">
+                            <i class="bi bi-cake2 me-1"></i>
+                            <span th:text="${usuario.fechaNacimiento != null ? #dates.format(usuario.fechaNacimiento,'dd/MM/yyyy') : 'Sin fecha'}">
+                              Sin fecha
+                            </span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <!-- Contacto -->
+                  <td class="text-start">
+                    <div><i class="bi bi-envelope me-1 text-muted"></i>
+                      <span th:text="${usuario.email} ?: 'Sin email'">Sin email</span>
+                    </div>
+                    <div><i class="bi bi-telephone me-1 text-muted"></i>
+                      <span th:text="${usuario.telefono} ?: 'Sin teléfono'">Sin teléfono</span>
+                    </div>
+                    <div><i class="bi bi-phone me-1 text-muted"></i>
+                      <span th:text="${usuario.celular} ?: 'Sin celular'">Sin celular</span>
+                    </div>
+                    <div class="mt-1"><i class="bi bi-upc me-1 text-muted"></i>
+                      <span class="text-uppercase" th:text="${usuario.curp} ?: 'Sin CURP'">Sin CURP</span>
+                    </div>
+                  </td>
+
+                  <!-- Direcciones -->
+                  <td class="text-start">
+                    <div th:if="${usuario.direcciones != null and !#lists.isEmpty(usuario.direcciones)}">
+                      <ul class="list-unstyled mb-0">
+                        <li th:each="direccion, iterStat : ${usuario.direcciones}" class="mb-2">
+                          <span class="fw-bold">[[${iterStat.index + 1}]].</span>
+                          <span th:text="${direccion.Calle}">Calle</span>
+                          <span th:if="${direccion.NumeroExterior != null}" th:text="' #'+${direccion.NumeroExterior}"></span>
+                          <span th:if="${direccion.NumeroInterior != null}" th:text="' Int. '+${direccion.NumeroInterior}"></span>
+                          <span th:if="${direccion.Colonia != null}" th:text="', '+${direccion.Colonia.Nombre}"></span>
+                          <span th:if="${direccion.Colonia != null}" th:text="' CP '+${direccion.Colonia.CodigoPostal}"></span>
+                          <span th:if="${direccion.Colonia != null and direccion.Colonia.Municipio != null}" th:text="', '+${direccion.Colonia.Municipio.Nombre}"></span>
+                          <span th:if="${direccion.Colonia != null and direccion.Colonia.Municipio != null and direccion.Colonia.Municipio.Estado != null}" th:text="', '+${direccion.Colonia.Municipio.Estado.Nombre}"></span>
+                          <span th:if="${direccion.Colonia != null and direccion.Colonia.Municipio != null and direccion.Colonia.Municipio.Estado != null and direccion.Colonia.Municipio.Estado.Pais != null}" th:text="', '+${direccion.Colonia.Municipio.Estado.Pais.Nombre}"></span>
+                        </li>
+                      </ul>
+                    </div>
+                    <div th:if="${usuario.direcciones == null or #lists.isEmpty(usuario.direcciones)}">
+                      <span class="text-danger">No tiene dirección</span>
+                    </div>
+                  </td>
+
+                  <!-- Estatus -->
+                  <td class="text-center">
+                    <div class="form-check form-switch d-inline-flex align-items-center gap-2">
+                      <input class="form-check-input js-status-toggle"
+                             type="checkbox" role="switch"
+                             th:data-id="${usuario.idUsuario}"
+                             th:checked="${usuario.status == 1}">
+                      <span class="badge"
+                            th:text="${usuario.status == 1 ? 'Activo' : 'Inactivo'}"
+                            th:classappend="${usuario.status == 1 ? ' bg-success' : ' bg-secondary'}">Activo</span>
+                    </div>
+                  </td>
+                </tr>
+
+                <!-- Empty state -->
+                <tr th:if="${usuarios == null or #lists.isEmpty(usuarios)}">
+                  <td colspan="5" class="text-center py-5">
+                    <i class="bi bi-inboxes display-6 text-muted d-block mb-2"></i>
+                    <div class="text-muted">No hay usuarios</div>
+                    <a th:href="@{/usuario/action/0}" class="btn btn-gradient btn-sm mt-3">
+                      <i class="bi bi-person-plus me-1"></i> Registrar usuario
+                    </a>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- jQuery (para AJAX y script de estatus con $) -->
+      <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
+
+      <!-- Estatus (delegación, funciona con filas nuevas) -->
+      <script>
+        $(document).on('change', '.js-status-toggle', function () {
+          const $input = $(this);
+          const id = $input.data('id');
+          const intentoActivo = $input.is(':checked');
+
+          const $cell = $input.closest('.form-switch');
+          const $badge = $cell.find('.badge').first();
+          const $row = $input.closest('tr');
+
+          const token = $('meta[name="_csrf"]').attr('content');
+          const header = $('meta[name="_csrf_header"]').attr('content');
+
+          $input.prop('disabled', true);
+
+          $.ajax({
+            url: `/usuario/${id}/status`,
+            type: 'PATCH',
+            data: {activo: intentoActivo},
+            beforeSend: function (xhr) {
+              xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+              if (token && header) xhr.setRequestHeader(header, token);
+            }
+          })
+          .done(function (j) {
+            if (!j || j.ok !== true) { throw new Error((j && j.msg) || 'No se pudo actualizar'); }
+            const activoServer = !!j.activo;
+            $input.prop('checked', activoServer);
+            if ($badge.length) {
+              $badge.text(activoServer ? 'Activo' : 'Inactivo')
+                    .toggleClass('bg-success', activoServer)
+                    .toggleClass('bg-secondary', !activoServer);
+            }
+            $row.toggleClass('table-secondary', !activoServer);
+          })
+          .fail(function (xhr) {
+            $input.prop('checked', !intentoActivo);
+            alert('Error al cambiar estatus: ' + (xhr.responseText || xhr.statusText));
+          })
+          .always(function () {
+            $input.prop('disabled', false);
+          });
+        });
+      </script>
+
+      <!-- Búsqueda dinámica (AJAX + debounce 250ms) -->
+      <script>
+        (function(){
+          // Evita que Enter envíe el form (y provoque POST/GET)
+          $(document).on('keydown', 'form input', function(e){
+            if(e.key === 'Enter'){ e.preventDefault(); return false; }
+          });
+
+          function esc(s){ return (s??'').toString()
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+            .replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+          function renderDirecciones(dirs){
+            if(!dirs || !dirs.length) return '<span class="text-danger">No tiene dirección</span>';
+            return '<ul class="list-unstyled mb-0">' + dirs.map((d,i) => {
+              const c=d?.colonia, m=c?.municipio, e=m?.estado, p=e?.pais;
+              const seg = [
+                esc(d?.calle||''), d?.numeroExterior ? ' #'+esc(d.numeroExterior) : '',
+                d?.numeroInterior ? ' Int. '+esc(d.numeroInterior) : '',
+                c?.nombre ? ', '+esc(c.nombre) : '',
+                c?.codigoPostal ? ' CP '+esc(c.codigoPostal) : '',
+                m?.nombre ? ', '+esc(m.nombre) : '',
+                e?.nombre ? ', '+esc(e.nombre) : '',
+                p?.nombre ? ', '+esc(p.nombre) : ''
+              ].join('');
+              return `<li class="mb-2"><span class="fw-bold">${i+1}.</span> ${seg}</li>`;
+            }).join('') + '</ul>';
+          }
+
+          function renderRows(items){
+            if(!items || !items.length) {
+              return `
+                <tr>
+                  <td colspan="5" class="text-center py-5">
+                    <i class="bi bi-inboxes display-6 text-muted d-block mb-2"></i>
+                    <div class="text-muted">No hay usuarios</div>
+                    <a href="/usuario/action/0" class="btn btn-gradient btn-sm mt-3">
+                      <i class="bi bi-person-plus me-1"></i> Registrar usuario
+                    </a>
+                  </td>
+                </tr>`;
+            }
+
+            return items.map(u => `
+              <tr>
+                <td class="text-nowrap">
+                  <a href="/usuario/action/${u.idUsuario}" class="btn btn-sm btn-warning me-1">
+                    <i class="bi bi-pencil-square"></i>
+                  </a>
+                  <a href="/usuario/eliminar?id=${u.idUsuario}" class="btn btn-sm btn-danger"
+                     onclick="return confirm('¿Eliminar al usuario seleccionado?');">
+                    <i class="bi bi-trash"></i>
+                  </a>
+                </td>
+
+                <td class="text-start">
+                  <div class="d-flex align-items-center gap-2">
+                    ${u.imagen
+                      ? `<img src="data:image/jpeg;base64,${esc(u.imagen)}" class="avatar" style="object-fit:cover;" alt="Avatar"/>`
+                      : `<div class="avatar"><span>${esc((u.nombre||'U').substring(0,1).toUpperCase())}</span></div>`}
                     <div>
-                        <h1 class="h4 mb-1"><i class="bi bi-people-fill me-2"></i>Usuarios</h1>
-                        <p class="mb-0 opacity-75">Listado general de usuarios registrados.</p>
+                      <div class="fw-semibold">${esc(u.nombre)} ${esc(u.apellidopaterno)} ${esc(u.apellidomaterno)}</div>
+                      <div class="text-muted small"><i class="bi bi-person-badge me-1"></i>${esc(u.username)||'Sin usuario'}</div>
+                      <div class="mt-1">
+                        <span class="badge ${
+                          (/^m$/i.test((u.sexo||'').trim()))?'bg-primary':
+                          ((/^f$/i.test((u.sexo||'').trim()))?'bg-danger':'text-bg-secondary')
+                        }">${
+                          (/^m$/i.test((u.sexo||'').trim())) ? 'Masculino' :
+                          ((/^f$/i.test((u.sexo||'').trim())) ? 'Femenino' : 'Sin dato')
+                        }</span>
+                        <span class="badge text-bg-light ms-1">
+                          <i class="bi bi-cake2 me-1"></i>${u.fechaNacimiento ? esc(u.fechaNacimiento) : 'Sin fecha'}
+                        </span>
+                      </div>
                     </div>
-                    <div class="text-end">
-                        <a th:href="@{/usuario/add}" class="btn btn-gradient btn-sm">
-                            <i class="bi bi-person-plus me-1"></i> Registrar usuario
-                        </a>
-                    </div>
-                </div>
+                  </div>
+                </td>
 
-                <!-- Filtros -->
-                <form method="post" th:action="@{/usuario}" th:object="${usuariobusqueda}" class="row g-2 mb-3">
-                    <div class="col-sm-3">
-                        <input class="form-control" placeholder="Nombre" th:field="*{Nombre}">
-                    </div>
-                    <div class="col-sm-3">
-                        <input class="form-control" placeholder="Apellido paterno" th:field="*{Apellidopaterno}">
-                    </div>
-                    <div class="col-sm-3">
-                        <input class="form-control" placeholder="Apellido materno" th:field="*{Apellidomaterno}">
-                    </div>
-                    <div class="col-sm-2">
-                        <select class="form-select" th:field="*{rol.idRol}">
-                            <option th:value="0">-- Rol (todos) --</option>
-                            <option th:each="r : ${roles}" th:value="${r.idRol}" th:text="${r.nombre}"></option>
-                        </select>
-                    </div>
-                    <div class="col-sm-1">
-                        <button class="btn btn-primary w-100" type="submit">
-                            <i class="bi bi-search"></i>
-                        </button>
-                    </div>
-                </form>
+                <td class="text-start">
+                  <div><i class="bi bi-envelope me-1 text-muted"></i>${esc(u.email)||'Sin email'}</div>
+                  <div><i class="bi bi-telephone me-1 text-muted"></i>${esc(u.telefono)||'Sin teléfono'}</div>
+                  <div><i class="bi bi-phone me-1 text-muted"></i>${esc(u.celular)||'Sin celular'}</div>
+                  <div class="mt-1"><i class="bi bi-upc me-1 text-muted"></i><span class="text-uppercase">${esc(u.curp)||'Sin CURP'}</span></div>
+                </td>
 
+                <td class="text-start">
+                  ${renderDirecciones(u.direcciones)}
+                </td>
 
+                <td class="text-center">
+                  <div class="form-check form-switch d-inline-flex align-items-center gap-2">
+                    <input class="form-check-input js-status-toggle" type="checkbox" role="switch"
+                           data-id="${u.idUsuario}" ${u.status===1?'checked':''}>
+                    <span class="badge ${u.status===1?'bg-success':'bg-secondary'}">
+                      ${u.status===1?'Activo':'Inactivo'}
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            `).join('');
+          }
 
+          function buscar(){
+            const qs = $.param({
+              nombre: $('#fNombre').val(),
+              apellidoPaterno: $('#fApP').val(),
+              apellidoMaterno: $('#fApM').val(),
+              idRol: $('#fRol').val() || 0,
+              page: 0,
+              size: 50
+            });
+            $.getJSON(`/usuario/search?${qs}`, function(r){
+              if(!r || r.ok !== true) return;
+              $('#tbodyUsuarios').html( renderRows(r.items) );
+            });
+          }
 
-                <!-- Mensaje flash (opcional) -->
-                <div th:if="${msg}" class="alert alert-success alert-dismissible fade show" role="alert">
-                    <span th:text="${msg}">Operación realizada</span>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
+          // Debounce 250ms al teclear; cambio inmediato en rol
+          let t;
+          $('#fNombre, #fApP, #fApM').on('input', function(){
+            clearTimeout(t); t = setTimeout(buscar, 250);
+          });
+          $('#fRol').on('change', buscar);
 
-                <!-- Tabla -->
-                <div class="card">
-                    <div class="table-responsive">
-                        <table class="table align-middle table-hover mb-0">
-                            <thead class="table-light text-center">
-                                <tr>
-                                    <th>Acciones</th>
-                                    <th>Usuario</th>
-                                    <th>Datos de contacto</th>
-                                    <th>Direcciones</th>
-                                    <th>Estatus</th>
-                                </tr>
-                            </thead>
-                            <tbody class="text-center">
-                                <tr th:each="usuario : ${usuarios}">
-                                    <!-- Acciones -->
-                                    <td class="text-nowrap">
-                                        <!-- Editar con RequestParam -->
-                                        <a th:href="@{/usuario/editarUsuario(idUsuario=${usuario.idUsuario})}"
-                                           class="btn btn-sm btn-warning me-1">
-                                            <i class="bi bi-pencil-square"></i>
-                                        </a>
-                                        <!-- Eliminar con RequestParam -->
-                                        <a th:href="@{/usuario/eliminar(id=${usuario.idUsuario})}"
-                                           class="btn btn-sm btn-danger"
-                                           onclick="return confirm('¿Eliminar al usuario seleccionado?');">
-                                            <i class="bi bi-trash"></i>
-                                        </a>
-                                    </td>
-
-                                    <!-- Usuario -->
-                                    <td class="text-start">
-                                        <div class="d-flex align-items-center gap-2">
-                                            <!-- Si tiene imagen -->
-                                            <img th:if="${usuario.imagen != null}"
-                                                 th:src="|data:image/jpeg;base64,${usuario.imagen}|"
-                                                 alt="Avatar usuario"
-                                                 class="avatar"
-                                                 style="object-fit: cover;"/>
-
-                                            <!-- Si no tiene imagen -->
-                                            <div th:unless="${usuario.imagen != null}" class="avatar">
-                                                <span th:text="${(usuario.nombre != null ? usuario.nombre.substring(0,1) : 'U').toUpperCase()}">U</span>
-                                            </div>
-
-                                            <div>
-                                                <div class="fw-semibold" th:text="|${usuario.nombre} ${usuario.apellidopaterno} ${usuario.apellidomaterno}|">
-                                                    Nombre Apellidos
-                                                </div>
-                                                <div class="text-muted small">
-                                                    <i class="bi bi-person-badge me-1"></i>
-                                                    <span th:text="${usuario.username} ?: 'Sin usuario'">Sin usuario</span>
-                                                </div>
-                                                <div class="mt-1">
-                                                    <!-- Sexo -->
-                                                    <span class="badge"
-                                                          th:classappend="${#strings.equalsIgnoreCase(#strings.trim(usuario.sexo),'M')} ? 'bg-primary' 
-                                                          : (${#strings.equalsIgnoreCase(#strings.trim(usuario.sexo),'F')} ? 'bg-danger' : 'text-bg-secondary')"
-                                                          th:text="${#strings.equalsIgnoreCase(#strings.trim(usuario.sexo),'M')} ? 'Masculino' 
-                                                          : (${#strings.equalsIgnoreCase(#strings.trim(usuario.sexo),'F')} ? 'Femenino' : 'Sin dato')">
-                                                        Sin dato
-                                                    </span>
-                                                    <!-- Fecha nacimiento -->
-                                                    <span class="badge text-bg-light ms-1">
-                                                        <i class="bi bi-cake2 me-1"></i>
-                                                        <span th:text="${usuario.fechaNacimiento != null ? #dates.format(usuario.fechaNacimiento,'dd/MM/yyyy') : 'Sin fecha'}">Sin fecha</span>
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-
-                                    <!-- Contacto -->
-                                    <td class="text-start">
-                                        <div><i class="bi bi-envelope me-1 text-muted"></i>
-                                            <span th:text="${usuario.email} ?: 'Sin email'">Sin email</span>
-                                        </div>
-                                        <div><i class="bi bi-telephone me-1 text-muted"></i>
-                                            <span th:text="${usuario.telefono} ?: 'Sin teléfono'">Sin teléfono</span>
-                                        </div>
-                                        <div><i class="bi bi-phone me-1 text-muted"></i>
-                                            <span th:text="${usuario.celular} ?: 'Sin celular'">Sin celular</span>
-                                        </div>
-                                        <div class="mt-1"><i class="bi bi-upc me-1 text-muted"></i>
-                                            <span class="text-uppercase" th:text="${usuario.curp} ?: 'Sin CURP'">Sin CURP</span>
-                                        </div>
-                                        <div class="mt-1">
-                                            <span class="badge text-bg-secondary">
-                                                <i class="bi bi-droplet-half me-1"></i>
-                                                <span th:text="${usuario.tiposangre} ?: 'Sin tipo'">Sin tipo</span>
-                                            </span>
-                                        </div>
-                                    </td>
-
-                                    <!-- Direcciones -->
-                                    <td class="text-start">
-                                        <div th:if="${usuario.direcciones != null and !#lists.isEmpty(usuario.direcciones)}">
-                                            <ul class="list-unstyled mb-0">
-                                                <li th:each="direccion, iterStat : ${usuario.direcciones}" class="mb-2">
-                                                    <span class="fw-bold">[[${iterStat.index + 1}]].</span>
-                                                    <span th:text="${direccion.Calle}">Calle</span>
-                                                    <span th:if="${direccion.NumeroExterior != null}" th:text="' #'+${direccion.NumeroExterior}"></span>
-                                                    <span th:if="${direccion.NumeroInterior != null}" th:text="' Int. '+${direccion.NumeroInterior}"></span>
-                                                    <span th:if="${direccion.Colonia != null}" th:text="', '+${direccion.Colonia.Nombre}"></span>
-                                                    <span th:if="${direccion.Colonia != null}" th:text="' CP '+${direccion.Colonia.CodigoPostal}"></span>
-                                                    <span th:if="${direccion.Colonia != null and direccion.Colonia.Municipio != null}" th:text="', '+${direccion.Colonia.Municipio.Nombre}"></span>
-                                                    <span th:if="${direccion.Colonia != null and direccion.Colonia.Municipio != null and direccion.Colonia.Municipio.Estado != null}" th:text="', '+${direccion.Colonia.Municipio.Estado.Nombre}"></span>
-                                                    <span th:if="${direccion.Colonia != null and direccion.Colonia.Municipio != null and direccion.Colonia.Municipio.Estado != null and direccion.Colonia.Municipio.Estado.Pais != null}" th:text="', '+${direccion.Colonia.Municipio.Estado.Pais.Nombre}"></span>
-                                                </li>
-                                            </ul>
-                                        </div>
-                                        <div th:if="${usuario.direcciones == null or #lists.isEmpty(usuario.direcciones)}">
-                                            <span class="text-danger">No tiene dirección</span>
-                                        </div>
-                                    </td>
-                                    <td class="text-center">
-                                        <div class="form-check form-switch d-inline-flex align-items-center gap-2">
-                                            <input class="form-check-input js-status-toggle"
-                                                   type="checkbox" role="switch"
-                                                   th:data-id="${usuario.idUsuario}"
-                                                   th:checked="${usuario.status == 1}">
-                                            <span class="badge"
-                                                  th:text="${usuario.status == 1 ? 'Activo' : 'Inactivo'}"
-                                                  th:classappend="${usuario.status == 1 ? ' bg-success' : ' bg-secondary'}">Activo</span>
-                                        </div>
-                                    </td>
-                                </tr>
-
-                                <!-- Empty state -->
-                                <tr th:if="${usuarios == null or #lists.isEmpty(usuarios)}">
-                                    <td colspan="4" class="text-center py-5">
-                                        <i class="bi bi-inboxes display-6 text-muted d-block mb-2"></i>
-                                        <div class="text-muted">No hay usuarios registrados</div>
-                                        <a th:href="@{/usuario/add}" class="btn btn-gradient btn-sm mt-3">
-                                            <i class="bi bi-person-plus me-1"></i> Registrar usuario
-                                        </a>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-
-            </div>
-
-            <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.7/dist/js/bootstrap.bundle.min.js"></script>
-
-            <script>
-                                               $(document).on('change', '.js-status-toggle', function () {
-                                                   const $input = $(this);
-                                                   const id = $input.data('id');
-                                                   const intentoActivo = $input.is(':checked');
-
-                                                   const $cell = $input.closest('.form-switch');
-                                                   const $badge = $cell.find('.badge').first();
-                                                   const $row = $input.closest('tr');
-
-                                                   // CSRF (Spring Security) — opcional
-                                                   const token = $('meta[name="_csrf"]').attr('content');
-                                                   const header = $('meta[name="_csrf_header"]').attr('content');
-
-                                                   $input.prop('disabled', true);
-
-                                                   $.ajax({
-                                                       url: `/usuario/${id}/status`,
-                                                       type: 'PATCH',
-                                                       data: {activo: intentoActivo},
-                                                       beforeSend: function (xhr) {
-                                                           xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-                                                           if (token && header)
-                                                               xhr.setRequestHeader(header, token);
-                                                       }
-                                                   })
-                                                           .done(function (j) {
-                                                               if (!j || j.ok !== true) {
-                                                                   throw new Error((j && j.msg) || 'No se pudo actualizar');
-                                                               }
-
-                                                               // Usa lo que confirma el servidor
-                                                               const activoServer = !!j.activo;
-                                                               $input.prop('checked', activoServer);
-
-                                                               if ($badge.length) {
-                                                                   $badge
-                                                                           .text(activoServer ? 'Activo' : 'Inactivo')
-                                                                           .toggleClass('bg-success', activoServer)
-                                                                           .toggleClass('bg-secondary', !activoServer);
-                                                               }
-                                                               $row.toggleClass('table-secondary', !activoServer);
-                                                           })
-                                                           .fail(function (xhr) {
-                                                               $input.prop('checked', !intentoActivo); // revertir si falla
-                                                               alert('Error al cambiar estatus: ' + (xhr.responseText || xhr.statusText));
-                                                           })
-                                                           .always(function () {
-                                                               $input.prop('disabled', false);
-                                                           });
-                                               });
-            </script>
-
-
-    </body>
+          // Opcional: disparo inicial
+          // buscar();
+        })();
+      </script>
+    </div>
+  </body>
 </html>
