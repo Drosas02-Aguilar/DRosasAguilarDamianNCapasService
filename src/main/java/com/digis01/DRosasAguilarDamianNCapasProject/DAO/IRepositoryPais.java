@@ -1,13 +1,13 @@
-/*
- * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
- * Click nbfs://nbhost/SystemFileSystem/Templates/Classes/Interface.java to edit this template
- */
 package com.digis01.DRosasAguilarDamianNCapasProject.DAO;
 
 import com.digis01.DRosasAguilarDamianNCapasProject.JPA.Pais;
 import org.springframework.data.jpa.repository.JpaRepository;
-
+import org.springframework.data.jpa.repository.Query;
+import java.util.List;
 
 public interface IRepositoryPais extends JpaRepository<Pais, Integer> {
-    
+
+    // Usa el NOMBRE DE CAMPO exacto en tu entidad: "Nombre" (N mayúscula)
+    @Query("SELECT p FROM Pais p ORDER BY p.Nombre ASC")
+    List<Pais> findAllOrderByNombre();
 }

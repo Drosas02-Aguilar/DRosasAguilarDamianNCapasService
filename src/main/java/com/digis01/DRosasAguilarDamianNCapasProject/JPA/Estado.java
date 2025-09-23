@@ -35,17 +35,8 @@ public class Estado {
     public Estado() {
     }
     
-   /* public Estado(com.digis01.DRosasAguilarDamianNCapasProject.ML.Estado eML) {
-    if (eML == null) return;
-    this.IdEstado = eML.getIdEstado();         // si vas a INSERT, puedes omitir
-    this.Nombre   = eML.getNombre();
-
-    if (eML.getPais() != null) {
-        // Variante completa:
-        this.Pais = new Pais(eML.getPais());
-
-    }
-}*/
+  
+  
 
     public Estado(int IdEstado, String Nombre) {
         this.IdEstado = IdEstado;

@@ -9,6 +9,7 @@ import com.digis01.DRosasAguilarDamianNCapasProject.JPA.Result;
 import com.digis01.DRosasAguilarDamianNCapasProject.JPA.Usuario;
 import java.util.Optional;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -165,5 +166,43 @@ public class ServiceDIreccion {
         return result;
     }
 }
+  
+  public Result Delete(int idDireccion) {
+    Result result = new Result();
+    try {
+        var opt = iRepositoryDireccion.findById(idDireccion);
+        if (!opt.isPresent()) {
+            result.correct = false;
+            result.status = 404;
+            result.errorMessage = "Dirección con id " + idDireccion + " no encontrada.";
+            return result;
+        }
 
+        var dir = opt.get();
+
+       
+        iRepositoryDireccion.delete(dir);
+
+        result.correct = true;
+        result.status = 200; // si prefieres, puedes devolver 204 sin body
+        result.object = java.util.Map.of("idDireccion", idDireccion, "deleted", true);
+        return result;
+
+    } catch (DataIntegrityViolationException dive) {
+        result.correct = false;
+        result.status = 409;
+        result.errorMessage = "No se puede eliminar la dirección por restricción de integridad: " 
+                            + dive.getMostSpecificCause().getMessage();
+        return result;
+
+    } catch (Exception ex) {
+        result.ex = ex;
+        result.errorMessage = ex.getLocalizedMessage();
+        result.correct = false;
+        result.status = 500;
+        return result;
+    }
+
+}
+  
 }

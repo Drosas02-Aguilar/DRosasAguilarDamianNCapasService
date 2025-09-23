@@ -13,6 +13,7 @@ import com.digis01.DRosasAguilarDamianNCapasProject.Service.ServiceDIreccion;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -64,6 +65,14 @@ public ResponseEntity Update(@PathVariable int id,
     Result result = serviceDIreccion.Update(id, direccion);
     return ResponseEntity.status(result.status).body(result);
 }
-    
+
+
+@DeleteMapping("delete/{id}")
+    public ResponseEntity Delete(@PathVariable int id){
+        Result result = serviceDIreccion.Delete(id);
+                return ResponseEntity.status(result.status).body(result);
+        
+        
+    }
     
 }
